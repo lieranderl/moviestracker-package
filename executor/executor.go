@@ -177,8 +177,6 @@ func (p *TrackersPipeline) RunTrackersSearchPipilene(isMovie string) *TrackersPi
 	allTorrents := pipeline.Merge(ctx, torrentsResults1, torrentsResults2)
 	allErrors := pipeline.Merge(ctx, rutorErrors1, rutorErrors2)
 
-	log.Println("ALL len: ", len(allTorrents))
-
 	ts, err := torrents.MergeTorrentChannlesToSlice(ctx, cancel, allTorrents, allErrors)
 	log.Println("TS length before: ", len(ts))
 	ts = torrents.RemoveDuplicatesInPlace(ts)

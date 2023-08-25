@@ -44,6 +44,11 @@ func MergeTorrentChannlesToSlice(ctx context.Context, cancelFunc context.CancelF
 		case res, ok := <-values:
 			if ok {
 				torrents = append(torrents, res...)
+				log.Print("Appending ", len(res), " torrents to slice. Total: ", len(torrents), " torrents")
+				if len(res) == 0 {
+					log.Print("Empty slice received")
+					return torrents, nil
+				}
 			} else {
 				log.Print("done")
 				return torrents, nil
