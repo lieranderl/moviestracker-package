@@ -182,7 +182,6 @@ func (p *TrackersPipeline) RunTrackersSearchPipilene(isMovie string) *TrackersPi
 	ts = torrents.RemoveDuplicatesInPlace(ts)
 	log.Println("TS length AFTER: ", len(ts))
 
-	log.Println("ALL TORRS: ", ts)
 	if err != nil {
 		p.Errors = append(p.Errors, err)
 	} else {
