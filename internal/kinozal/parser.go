@@ -43,8 +43,7 @@ func ParseMoviePage(url string) ([]*torrents.Torrent, error) {
 		}
 	})
 	err := c.Visit(url)
-
-	if l {
+	if l && len(titles) > 0 {
 		titles = fetchMagnetLinks(titles, httpcl)
 	}
 
@@ -66,8 +65,7 @@ func ParseSeriesPage(url string) ([]*torrents.Torrent, error) {
 		}
 	})
 	err := c.Visit(url)
-
-	if l {
+	if l && len(titles) > 0 {
 		titles = fetchMagnetLinks(titles, httpcl)
 	}
 
