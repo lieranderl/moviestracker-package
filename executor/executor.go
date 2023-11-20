@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"github.com/lieranderl/moviestracker-package/internal/kinozal"
 	"github.com/lieranderl/moviestracker-package/internal/movies"
 	"github.com/lieranderl/moviestracker-package/internal/rutor"
@@ -19,36 +22,107 @@ import (
 	"google.golang.org/api/option"
 )
 
-type Config struct {
+type config struct {
 	urls            []string
 	tmdbApiKey      string
 	firebaseProject string
 	goption         option.ClientOption
+	mongoURI        string
+}
+
+func initConfig(urls []string, tmdbkey string) *config {
+	return &config{
+		urls:       urls,
+		tmdbApiKey: tmdbkey,
+	}
+}
+
+func (c *config) WithFirebase(firebaseProject string, goption option.ClientOption) *config {
+	c.firebaseProject = firebaseProject
+	c.goption = goption
+	return c
+}
+
+func (c *config) WithMongo(mongoURI string) *config {
+	c.mongoURI = mongoURI
+	return c
 }
 
 type TrackersPipeline struct {
-	Torrents []*torrents.Torrent
-	Movies   []*movies.Short
-	config   Config
-	Errors   []error
+	torrents []*torrents.Torrent
+	movies   []*movies.Short
+	config   config
+	errors   []error
 }
 
-func Init(urls []string, tmdbapikey string, firebaseProject string, firebaseconfig string, saveToDb bool) *TrackersPipeline {
+type firebaseEnvVars struct {
+	firebaseProject string
+	firebaseConfig  string
+}
+
+type mongoEnvVars struct {
+	mongo_uri string
+}
+type EnvVars struct {
+	urls       []string
+	tmdbApiKey string
+	firebaseEnvVars
+	mongoEnvVars
+}
+
+func InitVars(urls []string, tmdbkey string) *EnvVars {
+	return &EnvVars{
+		urls:       urls,
+		tmdbApiKey: tmdbkey,
+	}
+}
+
+func (e *EnvVars) WithFirebase(firebaseProject string, firebaseConfig string) *EnvVars {
+	e.mongoEnvVars = mongoEnvVars{
+		mongo_uri: "",
+	}
+	e.firebaseEnvVars = firebaseEnvVars{
+		firebaseProject: firebaseProject,
+		firebaseConfig:  firebaseConfig,
+	}
+	return e
+}
+
+func (e *EnvVars) WithMongo(mongoUri string) *EnvVars {
+	e.firebaseEnvVars = firebaseEnvVars{
+		firebaseProject: "",
+		firebaseConfig:  "",
+	}
+	e.mongoEnvVars = mongoEnvVars{
+		mongo_uri: mongoUri,
+	}
+	return e
+}
+
+func Init(env EnvVars) *TrackersPipeline {
 	tp := new(TrackersPipeline)
-	goption := option.WithCredentialsJSON([]byte(firebaseconfig))
-	tp.config = Config{urls: urls, tmdbApiKey: tmdbapikey, firebaseProject: firebaseProject, goption: goption}
+	tp.config = *(initConfig(env.urls, env.tmdbApiKey))
+	if env.firebaseEnvVars.firebaseConfig != "" && env.firebaseEnvVars.firebaseProject != "" {
+		goption := option.WithCredentialsJSON([]byte(env.firebaseConfig))
+		tp.config.WithFirebase(env.firebaseEnvVars.firebaseProject, goption)
+
+	}
+	if env.mongoEnvVars.mongo_uri != "" {
+		tp.config.WithMongo(env.mongoEnvVars.mongo_uri)
+	}
+
 	return tp
 }
 
 func (p *TrackersPipeline) DeleteOldMoviesFromDb() *TrackersPipeline {
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		return p
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	firestoreClient, err := firestore.NewClient(ctx, p.config.firebaseProject, p.config.goption)
 	if err != nil {
-		p.Errors = append(p.Errors, err)
+		p.errors = append(p.errors, err)
 	}
 	moviesListRef := firestoreClient.Collection("latesttorrentsmovies").Where("LastTimeFound", "<", time.Now().Add(-time.Hour*24*30*12).Format("2006-01-02T15:04:05.000Z"))
 	iter := moviesListRef.Documents(ctx)
@@ -60,7 +134,7 @@ func (p *TrackersPipeline) DeleteOldMoviesFromDb() *TrackersPipeline {
 			break
 		}
 		if err != nil {
-			p.Errors = append(p.Errors, err)
+			p.errors = append(p.errors, err)
 			return p
 		}
 
@@ -76,19 +150,19 @@ func (p *TrackersPipeline) DeleteOldMoviesFromDb() *TrackersPipeline {
 
 	_, err = batch.Commit(ctx)
 	if err != nil {
-		p.Errors = append(p.Errors, err)
+		p.errors = append(p.errors, err)
 	}
 	return p
 }
 
 func (p *TrackersPipeline) ConvertTorrentsToMovieShort() *TrackersPipeline {
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		return p
 	}
 	ms := make([]*movies.Short, 0)
 	hash_list := make([]string, 0)
 	i := 0
-	for _, movietorr := range p.Torrents {
+	for _, movietorr := range p.torrents {
 		found := false
 		for _, h := range hash_list {
 			if h == movietorr.Hash {
@@ -110,51 +184,87 @@ func (p *TrackersPipeline) ConvertTorrentsToMovieShort() *TrackersPipeline {
 				searchname = movietorr.RussianName
 			}
 			movie := new(movies.Short)
-			movie.Hash = movietorr.Hash
+			// movie.Hash = movietorr.Hash
 			movie.Searchname = searchname
 			movie.Year = movietorr.Year
 			i += 1
 			movie.Torrents = append(movie.Torrents, movietorr)
 			movie.UpdateMoviesAttribs()
+			movie.Torrents = nil
 			ms = append(ms, movie)
 		}
 
 	}
-	p.Movies = ms
+	p.movies = ms
 	return p
 
 }
 
 func (p *TrackersPipeline) Tmdb() *TrackersPipeline {
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		return p
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	movieChan, errorChan := movies.MoviesPipelineStream(ctx, p.Movies, p.config.tmdbApiKey, 20)
-	p.Movies = movies.ChannelToMovies(ctx, cancel, movieChan, errorChan)
+	movieChan, errorChan := movies.MoviesPipelineStream(ctx, p.movies, p.config.tmdbApiKey, 20)
+	p.movies = movies.ChannelToMovies(ctx, cancel, movieChan, errorChan)
 	return p
 }
 
-func (p *TrackersPipeline) SaveToDb(collection string) *TrackersPipeline {
-	if len(p.Errors) > 0 {
+// MONGO DB
+func connectDB(mongo_uri string) *mongo.Client {
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongo_uri))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//ping the database
+	err = client.Ping(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return client
+}
+
+// getting database collections
+func getCollection(client *mongo.Client, dbname, collectionName string) *mongo.Collection {
+	collection := client.Database(dbname).Collection(collectionName)
+	return collection
+}
+
+func (p *TrackersPipeline) SaveToDb(collection string, dbtype string) *TrackersPipeline {
+	if len(p.errors) > 0 {
 		return p
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	firestoreClient, err := firestore.NewClient(ctx, p.config.firebaseProject, p.config.goption)
-	if err != nil {
-		p.Errors = append(p.Errors, err)
-		return p
+	if dbtype == "firebase" {
+		firestoreClient, err := firestore.NewClient(ctx, p.config.firebaseProject, p.config.goption)
+		if err != nil {
+			p.errors = append(p.errors, err)
+			return p
+		}
+		for _, m := range p.movies {
+			m.WriteMovieToFirestore(ctx, firestoreClient, collection)
+		}
 	}
-	for _, m := range p.Movies{
-		m.WriteMovieToDb(ctx, firestoreClient, collection)
+	if dbtype == "mongo" {
+
+		// Client instance
+		DB := connectDB(p.config.mongoURI)
+		moviesCol := getCollection(DB, "movies", collection)
+		for _, m := range p.movies {
+			m.WriteMovieToMongo(ctx, moviesCol)
+		}
+
 	}
+
 	return p
 }
 
 func (p *TrackersPipeline) RunTrackersSearchPipilene(isMovie string) *TrackersPipeline {
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		return p
 	}
 
@@ -183,15 +293,15 @@ func (p *TrackersPipeline) RunTrackersSearchPipilene(isMovie string) *TrackersPi
 	log.Println("TS length AFTER: ", len(ts))
 
 	if err != nil {
-		p.Errors = append(p.Errors, err)
+		p.errors = append(p.errors, err)
 	} else {
-		p.Torrents = ts
+		p.torrents = ts
 	}
 	return p
 }
 
 func (p *TrackersPipeline) RunRutorPipiline() *TrackersPipeline {
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		return p
 	}
 
@@ -204,18 +314,18 @@ func (p *TrackersPipeline) RunRutorPipiline() *TrackersPipeline {
 
 	ts, err := torrents.MergeTorrentChannlesToSlice(ctx, cancel, torrentsResults, rutorErrors)
 	if err != nil {
-		p.Errors = append(p.Errors, err)
+		p.errors = append(p.errors, err)
 	} else {
-		p.Torrents = ts
+		p.torrents = ts
 	}
 	return p
 }
 
 func (p *TrackersPipeline) HandleErrors() error {
 	var err error
-	if len(p.Errors) > 0 {
+	if len(p.errors) > 0 {
 		errorStrSlice := make([]string, 0)
-		for _, err := range p.Errors {
+		for _, err := range p.errors {
 			errorStrSlice = append(errorStrSlice, err.Error())
 		}
 		err := errors.New(strings.Join(errorStrSlice, ",\n"))

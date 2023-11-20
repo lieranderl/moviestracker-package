@@ -55,7 +55,6 @@ func (t *rutorTorrent) parseAttributes(after string) {
 		t.FHD = true
 	}
 
-	
 	if strings.Contains(strings.ToLower(after), "hdr10+") {
 		t.HDR10plus = true
 		t.HDR10 = true
@@ -67,7 +66,6 @@ func (t *rutorTorrent) parseAttributes(after string) {
 		t.HDR = true
 	}
 
-	
 }
 
 func (t *rutorTorrent) parseSizePeers(text string) {

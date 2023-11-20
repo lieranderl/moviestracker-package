@@ -37,7 +37,7 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 	if len(r.Results) > 0 {
 		if (m.Searchname == r.Results[0].OriginalTitle || m.Searchname == r.Results[0].Title) && m.Year == r.Results[0].ReleaseDate[:4] {
 			// m.Adult = r.Results[0].Adult
-			// m.BackdropPath = r.Results[0].BackdropPath
+			m.BackdropPath = r.Results[0].BackdropPath
 			m.ID = r.Results[0].ID
 			m.OriginalTitle = r.Results[0].OriginalTitle
 			// m.GenreIDs = r.Results[0].GenreIDs
@@ -69,7 +69,7 @@ func MoviesPipelineStream(ctx context.Context, movies []*Short, tmdbkey string, 
 }
 
 func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values <-chan *Short, errors <-chan error) []*Short {
-	movies := make([]*Short,0)
+	movies := make([]*Short, 0)
 	for {
 		select {
 		case <-ctx.Done():
@@ -83,6 +83,7 @@ func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values 
 		case m, ok := <-values:
 			if ok {
 				if len(m.OriginalTitle) > 0 {
+					m.Searchname = ""
 					movies = append(movies, m)
 				}
 			} else {
@@ -92,5 +93,3 @@ func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values 
 		}
 	}
 }
-
-
