@@ -2,7 +2,9 @@ package movies
 
 import (
 	"context"
+	"fmt"
 	"log"
+
 	// "math/rand"
 
 	"github.com/lieranderl/go-tmdb"
@@ -38,7 +40,7 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 		if (m.Searchname == r.Results[0].OriginalTitle || m.Searchname == r.Results[0].Title) && m.Year == r.Results[0].ReleaseDate[:4] {
 			// m.Adult = r.Results[0].Adult
 			m.BackdropPath = r.Results[0].BackdropPath
-			m.ID = r.Results[0].ID
+			m.ID = fmt.Sprint(r.Results[0].ID)
 			m.OriginalTitle = r.Results[0].OriginalTitle
 			// m.GenreIDs = r.Results[0].GenreIDs
 			// m.Popularity = r.Results[0].Popularity
@@ -47,12 +49,12 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 			m.Title = r.Results[0].Title
 			// m.Overview = r.Results[0].Overview
 			// m.Video = r.Results[0].Video
-			m.VoteAverage = r.Results[0].VoteAverage
-			m.VoteCount = r.Results[0].VoteCount
+			m.VoteAverage = fmt.Sprintf("%.1f", r.Results[0].VoteAverage)
+			m.VoteCount = fmt.Sprint(r.Results[0].VoteCount)
 		}
 	}
 	// m.ID = int(rand.Int63())
-	// m.OriginalTitle="pizda"
+	// m.OriginalTitle=""
 	return m, nil
 }
 
