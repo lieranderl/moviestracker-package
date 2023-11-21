@@ -55,6 +55,10 @@ type TrackersPipeline struct {
 	errors   []error
 }
 
+func (p *TrackersPipeline) GetTorrents() []*torrents.Torrent {
+	return p.torrents
+}
+
 type firebaseEnvVars struct {
 	firebaseProject string
 	firebaseConfig  string
