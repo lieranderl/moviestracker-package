@@ -42,7 +42,7 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 			m.BackdropPath = r.Results[0].BackdropPath
 			m.ID = fmt.Sprint(r.Results[0].ID)
 			m.OriginalTitle = r.Results[0].OriginalTitle
-			// m.GenreIDs = r.Results[0].GenreIDs
+			m.GenreIDs = r.Results[0].GenreIDs
 			// m.Popularity = r.Results[0].Popularity
 			m.PosterPath = r.Results[0].PosterPath
 			m.ReleaseDate = r.Results[0].ReleaseDate
@@ -52,7 +52,14 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 			m.VoteAverage = fmt.Sprintf("%.1f", r.Results[0].VoteAverage)
 			m.VoteCount = fmt.Sprint(r.Results[0].VoteCount)
 		}
+		// updage backdrop to english
+		options["language"] = "en"
+		images, _ := tmdbapi.tmdb.GetMovieImages(r.Results[0].ID, options)
+		if len(images.Backdrops) > 0 {
+			m.BackdropPath = images.Backdrops[0].FilePath
+		}
 	}
+
 	// m.ID = int(rand.Int63())
 	// m.OriginalTitle=""
 	return m, nil
