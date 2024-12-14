@@ -42,13 +42,13 @@ func main() {
 
 	// pring all collected movies
 	for _, m := range pipeline.GetMovies() {
-		log.Println("Movie:", m.ID, m.Title, m.OriginalTitle, m.Year, m.VoteAverage)
+		log.Println("Movie:", m.ID, m.Title, m.Year, m.VoteAverage, m.LastTimeFound)
 	}
 
 	// print all torrents
-	for _, torrent := range pipeline.GetTorrents() {
-		log.Println("Torrent:", torrent.Name, torrent.Date)
-	}
+	// for _, torrent := range pipeline.GetTorrents() {
+	// 	log.Println("Torrent:", torrent.Name, torrent.Date)
+	// }
 
 	elapsed := time.Since(start)
 	log.Printf("ALL took %s", elapsed)

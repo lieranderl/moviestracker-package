@@ -66,7 +66,7 @@ func (m *Short) setLastimeFound(t *torrents.Torrent) {
 		t.Date = time.Now().String()
 	}
 
-	layout := "2006-01-02T15:04:05.000Z"
+	layout := "2006-01-02"
 	timeformat, _ := time.Parse(layout, t.Date)
 
 	if timeformat.After(m.LastTimeFound) {

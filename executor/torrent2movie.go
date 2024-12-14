@@ -107,10 +107,5 @@ func (p *trackersPipeline) ConvertTorrentsToMovieShort() *trackersPipeline {
 	converter := NewMovieConverter(p.torrents)
 	p.movies = converter.Convert()
 
-	// print all movies
-	for _, movie := range p.movies {
-		fmt.Println(movie)
-	}
-
 	return p
 }
