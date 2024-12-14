@@ -3,7 +3,6 @@ package trackers
 import (
 	"crypto/md5"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
