@@ -110,7 +110,7 @@ func (p *trackersPipeline) GetMovies() []*movies.Short {
 
 func (p *trackersPipeline) RunTrackersSearchPipeline(isMovie bool) *trackersPipeline {
 	configs := []trackers.ParserConfig{
-		trackers.NewRutorConfig("http://rutor.info"),
+		trackers.NewRutorConfig("http://rutor.is"),
 		trackers.NewKinozalConfig("https://kinozal.tv"),
 	}
 
@@ -130,8 +130,9 @@ func (p *trackersPipeline) RunTrackersSearchPipeline(isMovie bool) *trackersPipe
 		p.config.ctx,
 		urlStream,
 		processor.ProcessURL,
-		3,
+		5,
 	)
+
 
 	var allTorrents []*torrents.Torrent
 	var errs []error

@@ -49,8 +49,6 @@ func (p *KinozalParser) login() error {
 
 	username := os.Getenv(p.config.AuthConfig.LoginEnvVar)
 	password := os.Getenv(p.config.AuthConfig.PasswordEnvVar)
-	log.Println("username", username)
-	log.Println("password", password)
 	log.Println("login url", p.config.AuthConfig.LoginURL)
 
 	if username == "" || password == "" {
@@ -174,32 +172,32 @@ func (p *KinozalParser) parseTorrentElement(tds *goquery.Selection, name string)
 	return torrent
 }
 
-func fetchMagnetLinks(titles []*torrents.Torrent, httpcl *http.Client) []*torrents.Torrent {
+func fetchMagnetLinks(torrents []*torrents.Torrent, httpcl *http.Client) []*torrents.Torrent {
 	pat := regexp.MustCompile(`btih:([aA-fF,0-9]{40})`)
 	magnetChannel := make(chan map[string]string)
-	for _, m := range titles {
+	for _, m := range torrents {
 		go GetMagnet(httpcl, m.DetailsUrl, magnetChannel)
 	}
 	i := 0
 	for mc := range magnetChannel {
 		i += 1
-		for _, m := range titles {
+		for _, m := range torrents {
 			if id, ok := mc[m.DetailsUrl]; ok {
 				m.Magnet = id
 				m.MagnetHash = pat.FindAllStringSubmatch(id, 1)[0][1]
 				break
 			}
 		}
-		if i == len(titles) {
+		if i == len(torrents) {
 			close(magnetChannel)
 		}
 	}
-	return titles
+	return torrents
 }
 
 func GetMagnet(httpClient *http.Client, id string, mc chan map[string]string) {
 	var magnet string
-	bb, err := get(httpClient, "http://kinozal.tv/get_srv_details.php?id="+id+"&action=2")
+	bb, err := get(httpClient, "https://kinozal.tv/get_srv_details.php?id="+id+"&action=2")
 	time.Sleep(1 * time.Second)
 	if err != nil {
 		log.Fatalln("failed to get data.")

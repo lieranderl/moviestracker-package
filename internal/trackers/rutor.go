@@ -3,6 +3,7 @@ package trackers
 import (
 	"crypto/md5"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -63,7 +64,6 @@ func (p *RutorParser) parsePage(url string, isSeries bool) ([]*torrents.Torrent,
 
 func (p *RutorParser) parseTorrentElement(e *colly.HTMLElement) *torrents.Torrent {
 	torrent := &torrents.Torrent{}
-
 	// Parse title and attributes
 	listst := strings.Split(e.Text, "\n")
 	if len(listst) < 3 {
@@ -124,7 +124,6 @@ func (p *RutorParser) parseTitle(text string) ParsedTitle {
 		russianName, after, _ := strings.Cut(text, " (")
 		title.Year = strings.Split(after, ")")[0]
 		title.RussianName = russianName
-		title.Name = russianName
 	} else {
 		// Title with original name
 		parts := strings.Split(text, " / ")
@@ -133,8 +132,8 @@ func (p *RutorParser) parseTitle(text string) ParsedTitle {
 		originalName, after, _ := strings.Cut(parts[len(parts)-1], " (")
 		title.Year = strings.Split(after, ")")[0]
 		title.OriginalName = originalName
-		title.Name = title.RussianName
 	}
+	title.Name = text
 
 	return title
 }
