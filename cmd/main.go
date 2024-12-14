@@ -3,7 +3,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"strings"
+	// "fmt"
 	"log"
 
 	"os"
@@ -19,18 +20,18 @@ func main() {
 	start := time.Now()
 	godotenv.Load()
 
-	urls := []string{fmt.Sprintf(os.Getenv("KZ_SEARCH_URL"), "Bad boys", "2024"), fmt.Sprintf(os.Getenv("RUTOR_SEARCH_URL"), "Bad boys", "2024")}
+	// urls := []string{fmt.Sprintf(os.Getenv("KZ_SEARCH_URL"), "Bad boys", "2024"), fmt.Sprintf(os.Getenv("RUTOR_SEARCH_URL"), "Bad boys", "2024")}
 
-	// rutorUrls := strings.Split(os.Getenv("RUTOR_DV_URLS"), ",")
-	// kinizalUrls := strings.Split(os.Getenv("KINOZAL_DV_URLS"), ",")
-	// urls := append(rutorUrls, kinizalUrls...)
+	rutorUrls := strings.Split(os.Getenv("RUTOR_DV_URLS"), ",")
+	kinizalUrls := strings.Split(os.Getenv("KINOZAL_DV_URLS"), ",")
+	urls := append(rutorUrls, kinizalUrls...)
 
 	// Initialize the pipeline
 	pipeline := executor.InitPipeline(context.Background(), urls, os.Getenv("TMDBAPIKEY"), executor.OptionWithMongo(os.Getenv("MONGO_URI")))
 
 	err := pipeline.
 		RunTrackersSearchPipeline(true).
-		// ConvertTorrentsToMovieShort().
+		ConvertTorrentsToMovieShort().
 		// Tmdb().
 		// SaveToDb().
 		HandleErrors()
@@ -40,9 +41,9 @@ func main() {
 	log.Println(pipeline)
 
 	// pring all collected movies
-	// for _, m := range pipeline.GetMovies() {
-	// 	log.Println("Movie:", m.ID, m.Title, m.OriginalTitle, m.Year, m.VoteAverage)
-	// }
+	for _, m := range pipeline.GetMovies() {
+		log.Println("Movie:", m.ID, m.Title, m.OriginalTitle, m.Year, m.VoteAverage)
+	}
 
 	// print all torrents
 	for _, torrent := range pipeline.GetTorrents() {

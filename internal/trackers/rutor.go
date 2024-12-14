@@ -77,6 +77,7 @@ func (p *RutorParser) parseTorrentElement(e *colly.HTMLElement) *torrents.Torren
 	torrent.Year = title.Year
 
 	// Parse date
+
 	if date, err := ParseDate(listst[0], p.config.ParseConfig.DateFormat); err == nil {
 		torrent.Date = date
 	}

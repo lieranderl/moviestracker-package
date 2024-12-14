@@ -69,13 +69,14 @@ func ParseDate(dateStr string, format string) (string, error) {
 	timeNow := time.Now()
 	switch {
 	case strings.Contains(dateStr, "сегодня"):
-		return monday.Format(timeNow, layout, monday.LocaleRuRU), nil
+		// timeNow to 2006-01-02 format
+		return timeNow.Format(layout), nil
 	case strings.Contains(dateStr, "вчера"):
-		return monday.Format(timeNow.AddDate(0, 0, -1), layout, monday.LocaleRuRU), nil
+		return timeNow.AddDate(0, 0, -1).Format(layout), nil
 	default:
-		// Try parsing with the provided format
-		if parsedTime, err := monday.Parse(format, dateStr, monday.LocaleRuRU); err == nil {
-			return monday.Format(parsedTime, layout, monday.LocaleRuRU), nil
+		cleanDateStr := strings.ReplaceAll(dateStr, "\u00A0", " ")
+		if parsedTime, err := monday.Parse(format, cleanDateStr, monday.LocaleRuRU); err == nil {
+			return parsedTime.Format(layout), nil
 		}
 		return "", fmt.Errorf("failed to parse date: %s", dateStr)
 	}
