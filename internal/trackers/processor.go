@@ -33,7 +33,7 @@ func NewTrackerProcessor(isMovie bool, configs ...ParserConfig) (*TrackerProcess
 func (tp *TrackerProcessor) ProcessURL(url string) ([]*torrents.Torrent, error) {
 	trackerType := determineTrackerType(url)
 	parser, exists := tp.parsers[trackerType]
-	
+
 	if !exists {
 		return nil, fmt.Errorf("no parser found for URL: %s", url)
 	}

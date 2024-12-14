@@ -14,7 +14,7 @@ func NewRutorConfig(baseURL string) ParserConfig {
 			ExcludePatterns: []string{
 				"PROPER", "REPACK",
 			},
-			DateFormat:    "02.01.2006",
+			DateFormat:    "02 Jan 06",
 			TitleSelector: "tr.gai,tr.tum",
 			SizeSelector:  "tr td:nth-child(4)",
 			SeedsSelector: "tr td:nth-child(5)",
@@ -44,7 +44,7 @@ func NewKinozalConfig(baseURL string) ParserConfig {
 			ExcludePatterns: []string{
 				"Трейлер", "Анонс",
 			},
-			DateFormat:    "2006-01-02T15:04:05.000Z",
+			DateFormat:    "02.01.2006",
 			TitleSelector: "tr.bg",
 			SizeSelector:  "td:nth-child(4)",
 			SeedsSelector: "td:nth-child(5)",

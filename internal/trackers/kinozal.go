@@ -161,7 +161,6 @@ func (p *KinozalParser) parseTorrentElement(tds *goquery.Selection, name string)
 	if leeches, err := ParseInt(tds.Eq(5).Text()); err == nil {
 		torrent.Leeches = leeches
 	}
-
 	if dateStr := strings.Fields(tds.Eq(6).Text()); len(dateStr) > 0 {
 		if date, err := ParseDate(dateStr[0], p.config.ParseConfig.DateFormat); err == nil {
 			torrent.Date = date

@@ -46,7 +46,7 @@ func main() {
 
 	// print all torrents
 	for _, torrent := range pipeline.GetTorrents() {
-		log.Println("Torrent:", torrent.Name, torrent.Size, torrent.Date, torrent.Magnet, torrent.Date)
+		log.Println("Torrent:", torrent.Name, torrent.Date)
 	}
 
 	elapsed := time.Since(start)

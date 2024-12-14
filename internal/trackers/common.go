@@ -64,18 +64,19 @@ func ParseInt(s string) (int32, error) {
 
 // ParseDate parses date string using specified format
 func ParseDate(dateStr string, format string) (string, error) {
-	layout := "2006-01-02T15:04:05.000Z"
+	// ISO 8601 format
+	layout := "2006-01-02"
 	timeNow := time.Now()
-
 	switch {
 	case strings.Contains(dateStr, "сегодня"):
 		return monday.Format(timeNow, layout, monday.LocaleRuRU), nil
 	case strings.Contains(dateStr, "вчера"):
 		return monday.Format(timeNow.AddDate(0, 0, -1), layout, monday.LocaleRuRU), nil
 	default:
+		// Try parsing with the provided format
 		if parsedTime, err := monday.Parse(format, dateStr, monday.LocaleRuRU); err == nil {
 			return monday.Format(parsedTime, layout, monday.LocaleRuRU), nil
 		}
-		return "", fmt.Errorf("failed to parse date")
+		return "", fmt.Errorf("failed to parse date: %s", dateStr)
 	}
 }

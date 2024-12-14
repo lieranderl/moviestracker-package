@@ -133,7 +133,6 @@ func (p *trackersPipeline) RunTrackersSearchPipeline(isMovie bool) *trackersPipe
 		5,
 	)
 
-
 	var allTorrents []*torrents.Torrent
 	var errs []error
 
