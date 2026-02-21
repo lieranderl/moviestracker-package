@@ -2,8 +2,10 @@ package kinozal
 
 import (
 	"compress/gzip"
+	"context"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,35 +18,46 @@ type Cred struct {
 }
 
 const KINOZALLOGINURL = "https://kinozal.tv/takelogin.php"
+const defaultRequestTimeout = 20 * time.Second
 
 func Login(httpClient *http.Client, cred *Cred) (bool, *http.Client) {
 	_, err := httpClient.Get(KINOZALLOGINURL)
 	if err != nil {
-		log.Fatalln("Can not login to kinozal.")
+		slog.Warn("cannot reach kinozal login", "error", err)
+		return false, nil
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 	_, err = httpClient.PostForm(KINOZALLOGINURL, url.Values{"username": {cred.Login}, "password": {cred.Password}, "wact": {"takerecover"}, "touser": {"1"}})
 	if err != nil {
-		log.Fatalln("Login attempt failed")
+		slog.Warn("kinozal login attempt failed", "error", err)
+		return false, nil
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 	u, _ := url.Parse(KINOZALLOGINURL)
 	for _, j := range httpClient.Jar.Cookies(u) {
 		if j.Name == "pass" {
 			return true, httpClient
 		}
 	}
-	log.Println("No Login")
+	slog.Warn("kinozal login cookie not found")
 	return false, nil
 }
 
 func GetMagnet(httpClient *http.Client, id string, mc chan map[string]string) {
+	magnet, err := getMagnetForID(httpClient, id)
+	if err != nil {
+		slog.Warn("failed to resolve magnet", "details_id", id, "error", err)
+	}
+	mc <- map[string]string{id: magnet}
+}
+
+func getMagnetForID(httpClient *http.Client, id string) (string, error) {
 	var magnet string
 	bb, err := get(httpClient, "http://kinozal.tv/get_srv_details.php?id="+id+"&action=2")
-	time.Sleep(1 * time.Second)
+	time.Sleep(300 * time.Millisecond)
 	if err != nil {
-		log.Fatalln("failed to get data.")
+		return "", err
 	}
 	if strings.Contains(string(bb), "хеш:") {
 		list := strings.Fields(string(bb))
@@ -55,7 +68,7 @@ func GetMagnet(httpClient *http.Client, id string, mc chan map[string]string) {
 			}
 		}
 	}
-	mc <- map[string]string{id: magnet}
+	return magnet, nil
 }
 
 func get(httpClient *http.Client, url1 string) ([]byte, error) {
@@ -64,16 +77,25 @@ func get(httpClient *http.Client, url1 string) ([]byte, error) {
 	headers.Set("Accept-Encoding", "gzip")
 	urlp, err := url.Parse(url1)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	req := &http.Request{Header: headers, URL: urlp}
+	req, err := http.NewRequest(http.MethodGet, urlp.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+	defer cancel()
+	req = req.WithContext(ctx)
+	req.Header = headers
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	// Check that the server actual sent compressed data
 	var reader io.ReadCloser
@@ -81,7 +103,6 @@ func get(httpClient *http.Client, url1 string) ([]byte, error) {
 	case "gzip":
 		reader, err = gzip.NewReader(resp.Body)
 		if err != nil {
-			log.Println("Gzip error", err)
 			return nil, err
 		}
 		defer reader.Close()
@@ -90,7 +111,6 @@ func get(httpClient *http.Client, url1 string) ([]byte, error) {
 	}
 	bb, err := io.ReadAll(reader)
 	if err != nil {
-		log.Println("Read error", err)
 		return nil, err
 	} else {
 		return bb, nil

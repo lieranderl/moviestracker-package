@@ -1,0 +1,38 @@
+minimum_pre_commit_version: "3.5.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt (staged Go files)
+        entry: gofmt -w
+        language: system
+        types: [go]
+
+      - id: go-vet-changed
+        name: go vet (changed Go packages)
+        entry: ./scripts/precommit-go-package-check.sh vet
+        language: system
+        pass_filenames: false
+
+      - id: go-test-changed
+        name: go test -short (changed Go packages)
+        entry: ./scripts/precommit-go-package-check.sh test
+        language: system
+        pass_filenames: false
+
+      - id: go-lint-changed
+        name: golangci-lint (changed Go packages)
+        entry: ./scripts/precommit-go-package-check.sh lint
+        language: system
+        pass_filenames: false

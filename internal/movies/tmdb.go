@@ -3,7 +3,7 @@ package movies
 import (
 	"context"
 	"fmt"
-	"log"
+	"strings"
 
 	// "math/rand"
 
@@ -27,17 +27,25 @@ func TMDBInit(tmdbkey string) *TMDb {
 }
 
 func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
-	var options = make(map[string]string)
+	options := make(map[string]string)
 	options["language"] = "ru"
 	options["year"] = m.Year
-	log.Println("Start TMDB search:", m.Searchname, m.Year)
 	r, err := tmdbapi.tmdb.SearchMovie(m.Searchname, options)
-	log.Println("Got result for TMDB search:", m.Searchname, m.Year)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tmdb search %q (%s): %w", m.Searchname, m.Year, err)
 	}
 	if len(r.Results) > 0 {
-		if (m.Searchname == r.Results[0].OriginalTitle || m.Searchname == r.Results[0].Title) && m.Year == r.Results[0].ReleaseDate[:4] {
+		releaseDate := strings.TrimSpace(r.Results[0].ReleaseDate)
+		releaseYear := ""
+		if len(releaseDate) >= 4 {
+			releaseYear = releaseDate[:4]
+		}
+
+		sameTitle := strings.EqualFold(strings.TrimSpace(m.Searchname), strings.TrimSpace(r.Results[0].OriginalTitle)) ||
+			strings.EqualFold(strings.TrimSpace(m.Searchname), strings.TrimSpace(r.Results[0].Title))
+		sameYear := m.Year == "" || releaseYear == "" || m.Year == releaseYear
+
+		if sameTitle && sameYear {
 			// m.Adult = r.Results[0].Adult
 			m.BackdropPath = r.Results[0].BackdropPath
 			m.ID = fmt.Sprint(r.Results[0].ID)
@@ -54,9 +62,11 @@ func (tmdbapi *TMDb) fetchMovieDetails(m *Short) (*Short, error) {
 		}
 		// updage backdrop to english
 		options["language"] = "en"
-		images, _ := tmdbapi.tmdb.GetMovieImages(r.Results[0].ID, options)
-		if len(images.Backdrops) > 0 {
-			m.BackdropPath = images.Backdrops[0].FilePath
+		images, imageErr := tmdbapi.tmdb.GetMovieImages(r.Results[0].ID, options)
+		if imageErr == nil && len(images.Backdrops) > 0 {
+			if m.BackdropPath == "" {
+				m.BackdropPath = images.Backdrops[0].FilePath
+			}
 		}
 	}
 
@@ -69,7 +79,10 @@ func MoviesPipelineStream(ctx context.Context, movies []*Short, tmdbkey string, 
 	m, err := pipeline.Producer(ctx, movies)
 	if err != nil {
 		mc := make(chan *Short)
-		ec := make(chan error)
+		ec := make(chan error, 1)
+		close(mc)
+		ec <- err
+		close(ec)
 		return mc, ec
 	}
 	mytmdb := TMDBInit(tmdbkey)
@@ -77,17 +90,27 @@ func MoviesPipelineStream(ctx context.Context, movies []*Short, tmdbkey string, 
 	return movie_chan, errors
 }
 
-func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values <-chan *Short, errors <-chan error) []*Short {
+func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values <-chan *Short, errors <-chan error) ([]*Short, error) {
 	movies := make([]*Short, 0)
-	for {
+	var firstErr error
+
+	for values != nil || errors != nil {
 		select {
 		case <-ctx.Done():
-			log.Print(ctx.Err().Error())
-			return movies
-		case err := <-errors:
+			if firstErr != nil {
+				return movies, firstErr
+			}
+			return movies, ctx.Err()
+		case err, ok := <-errors:
+			if !ok {
+				errors = nil
+				continue
+			}
 			if err != nil {
-				log.Println("error: ", err.Error())
 				cancelFunc()
+				if firstErr == nil {
+					firstErr = err
+				}
 			}
 		case m, ok := <-values:
 			if ok {
@@ -96,9 +119,10 @@ func ChannelToMovies(ctx context.Context, cancelFunc context.CancelFunc, values 
 					movies = append(movies, m)
 				}
 			} else {
-				log.Println("Done! Collected", len(movies), "movies")
-				return movies
+				values = nil
 			}
 		}
 	}
+
+	return movies, firstErr
 }

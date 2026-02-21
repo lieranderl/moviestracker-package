@@ -2,26 +2,17 @@ package movies
 
 import (
 	"context"
-	"log"
+	"fmt"
 
-	"cloud.google.com/go/firestore"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func (m *Short) WriteMovieToFirestore(ctx context.Context, firestoreClient *firestore.Client, collection string) {
-	moviesListRef := firestoreClient.Collection(collection)
-	_, err := moviesListRef.Doc(m.ID).Set(ctx, m)
+func (m *Short) WriteMovieToMongo(ctx context.Context, collection *mongo.Collection) error {
+	_, err := collection.UpdateOne(ctx, bson.M{"id": m.ID}, bson.M{"$set": m}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
-		log.Println("Failed to write", m.ID, m.Title)
+		return fmt.Errorf("write mongo movie %s (%s): %w", m.ID, m.Title, err)
 	}
-}
-
-func (m *Short) WriteMovieToMongo(ctx context.Context, collection *mongo.Collection) {
-	_, err := collection.UpdateOne(ctx, bson.M{"id": m.ID}, bson.M{"$set": m}, options.Update().SetUpsert(true))
-	if err != nil {
-		log.Println(err)
-		log.Println("Failed to write", m.ID, m.Title)
-	}
+	return nil
 }

@@ -14,9 +14,18 @@ type rutorTorrent struct {
 func (t *rutorTorrent) rutorTitleToMovie(text string) {
 	var after string
 	listst := strings.Split(text, "\n")
-	ll := strings.Split(listst[1], "  ")
+	if len(listst) < 2 {
+		return
+	}
+	ll := strings.Split(strings.TrimSpace(listst[1]), "  ")
+	if len(ll) == 0 {
+		return
+	}
 
-	t.Name = ll[0]
+	t.Name = strings.TrimSpace(ll[0])
+	if t.Name == "" {
+		return
+	}
 	if isRussianOnly(t.Name) {
 		t.RussianName, after, _ = strings.Cut(t.Name, " (")
 		t.Year = strings.Split(after, ")")[0]
@@ -26,7 +35,9 @@ func (t *rutorTorrent) rutorTitleToMovie(text string) {
 	}
 	t.Date = parseDate(listst[0])
 
-	t.parseSizePeers(listst[2])
+	if len(listst) > 2 {
+		t.parseSizePeers(listst[2])
+	}
 }
 
 func (t *rutorTorrent) parseNameAttributes() {
@@ -70,6 +81,9 @@ func (t *rutorTorrent) parseAttributes(after string) {
 
 func (t *rutorTorrent) parseSizePeers(text string) {
 	list := strings.Fields(text)
+	if len(list) < 4 {
+		return
+	}
 	if s, err := strconv.ParseFloat(list[0], 32); err == nil {
 		t.Size = float32(s)
 	}

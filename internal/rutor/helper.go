@@ -27,8 +27,14 @@ var fullMonth = map[string]string{
 }
 
 func parseDate(text string) string {
+	const layout = "2006-01-02T15:04:05.000Z"
+
 	stringDate := ""
 	dateList := strings.Fields(text)
+	if len(dateList) < 3 {
+		return time.Now().UTC().Format(layout)
+	}
+
 	for k, v := range fullMonth {
 		if dateList[1] == k {
 			if strings.HasPrefix(dateList[0], "0") {
@@ -38,7 +44,10 @@ func parseDate(text string) string {
 			break
 		}
 	}
-	ts, _ := monday.ParseInLocation("2 January 2006", stringDate, time.Now().UTC().Location(), monday.LocaleRuRU)
+	ts, err := monday.ParseInLocation("2 January 2006", stringDate, time.Now().UTC().Location(), monday.LocaleRuRU)
+	if err != nil {
+		return time.Now().UTC().Format(layout)
+	}
 
-	return ts.Format("2006-01-02T15:04:05.000Z")
+	return ts.Format(layout)
 }

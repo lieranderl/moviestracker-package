@@ -2,7 +2,6 @@ package torrents
 
 import (
 	"context"
-	"log"
 	"sort"
 	"strings"
 )
@@ -29,15 +28,21 @@ type Torrent struct {
 }
 
 func MergeTorrentChannlesToSlice(ctx context.Context, cancelFunc context.CancelFunc, values <-chan []*Torrent, errors <-chan error) ([]*Torrent, error) {
+	return MergeTorrentChannelsToSlice(ctx, cancelFunc, values, errors)
+}
+
+func MergeTorrentChannelsToSlice(ctx context.Context, cancelFunc context.CancelFunc, values <-chan []*Torrent, errors <-chan error) ([]*Torrent, error) {
 	torrents := make([]*Torrent, 0)
-	for {
+	for values != nil || errors != nil {
 		select {
 		case <-ctx.Done():
-			log.Print(ctx.Err().Error())
 			return torrents, ctx.Err()
-		case err := <-errors:
+		case err, ok := <-errors:
+			if !ok {
+				errors = nil
+				continue
+			}
 			if err != nil {
-				log.Println("error: ", err.Error())
 				cancelFunc()
 				return torrents, err
 			}
@@ -45,11 +50,11 @@ func MergeTorrentChannlesToSlice(ctx context.Context, cancelFunc context.CancelF
 			if ok {
 				torrents = append(torrents, res...)
 			} else {
-				log.Print("done")
-				return torrents, nil
+				values = nil
 			}
 		}
 	}
+	return torrents, nil
 }
 
 func RemoveDuplicatesInPlace(torrents []*Torrent) []*Torrent {
@@ -68,7 +73,7 @@ func RemoveDuplicatesInPlace(torrents []*Torrent) []*Torrent {
 	for i := 1; i < len(torrents); i++ {
 		// compare a current item with the item under the unique pointer.
 		// if they are not the same, write the item next to the right of the unique pointer.
-		if !strings.EqualFold(strings.ToLower(torrents[uniqPointer].MagnetHash), strings.ToLower(torrents[i].MagnetHash)) {
+		if !strings.EqualFold(torrents[uniqPointer].MagnetHash, torrents[i].MagnetHash) {
 			uniqPointer++
 			torrents[uniqPointer] = torrents[i]
 		}

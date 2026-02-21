@@ -7,7 +7,11 @@ func Producer[T any](ctx context.Context, urls []T) (<-chan T, error) {
 	go func() {
 		defer close(outChannel)
 		for _, url := range urls {
-			outChannel <- url
+			select {
+			case <-ctx.Done():
+				return
+			case outChannel <- url:
+			}
 		}
 	}()
 	return outChannel, nil

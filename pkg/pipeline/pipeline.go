@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"context"
-	"log"
 	"sync"
 
 	"golang.org/x/sync/semaphore"
@@ -14,6 +13,10 @@ func Step[In any, Out any](
 	fn func(In) (Out, error),
 	limit int64,
 ) (chan Out, chan error) {
+	if limit < 1 {
+		limit = 1
+	}
+
 	outputChannel := make(chan Out)
 	errorChannel := make(chan error)
 
@@ -26,15 +29,31 @@ func Step[In any, Out any](
 		defer close(outputChannel)
 		defer close(errorChannel)
 
-		for s := range inputChannel {
+		for {
+			var s In
+			var ok bool
+
 			select {
 			case <-ctx.Done():
-			default:
+				return
+			case s, ok = <-inputChannel:
+				if !ok {
+					if err := sem1.Acquire(ctx, limit); err != nil {
+						select {
+						case errorChannel <- err:
+						case <-ctx.Done():
+						}
+					}
+					return
+				}
 			}
 
 			if err := sem1.Acquire(ctx, 1); err != nil {
-				log.Printf("Failed to acquire semaphore: %v", err)
-				break
+				select {
+				case errorChannel <- err:
+				case <-ctx.Done():
+				}
+				return
 			}
 
 			go func(s In) {
@@ -42,15 +61,17 @@ func Step[In any, Out any](
 
 				result, err := fn(s)
 				if err != nil {
-					errorChannel <- err
+					select {
+					case errorChannel <- err:
+					case <-ctx.Done():
+					}
 				} else {
-					outputChannel <- result
+					select {
+					case outputChannel <- result:
+					case <-ctx.Done():
+					}
 				}
 			}(s)
-		}
-
-		if err := sem1.Acquire(ctx, limit); err != nil {
-			log.Printf("Failed to acquire semaphore: %v", err)
 		}
 	}()
 
