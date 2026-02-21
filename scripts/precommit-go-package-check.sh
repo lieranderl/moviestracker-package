@@ -31,20 +31,27 @@ if [[ -z "${STAGED_GO_FILES}" ]]; then
   exit 0
 fi
 
-PKGS="$(
-  while IFS= read -r file; do
-    [[ -z "${file}" ]] && continue
-    [[ -f "${file}" ]] || continue
-    dir="$(dirname "${file}")"
-    if [[ "${dir}" == "." ]]; then
-      pkg="./"
-    else
-      pkg="./${dir}"
-    fi
-    go list "${pkg}" >/dev/null 2>&1 || continue
-    echo "${pkg}"
-  done <<< "${STAGED_GO_FILES}" | sort -u
-)"
+PKG_LINES=""
+while IFS= read -r file; do
+  if [[ -z "${file}" ]]; then
+    continue
+  fi
+  if [[ ! -f "${file}" ]]; then
+    continue
+  fi
+
+  dir="$(dirname "${file}")"
+  pkg="./${dir}"
+  if [[ "${dir}" == "." ]]; then
+    pkg="./"
+  fi
+
+  if go list "${pkg}" >/dev/null 2>&1; then
+    PKG_LINES+="${pkg}"$'\n'
+  fi
+done <<< "${STAGED_GO_FILES}"
+
+PKGS="$(printf '%s' "${PKG_LINES}" | awk 'NF' | sort -u)"
 
 if [[ -z "${PKGS}" ]]; then
   echo "No resolvable staged Go packages, skipping ${MODE}"
