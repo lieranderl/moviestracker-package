@@ -24,6 +24,11 @@ mkdir -p "${ROOT_DIR}/.cache/go-build" "${ROOT_DIR}/.cache/go-mod"
 export GOCACHE="${GOCACHE:-${ROOT_DIR}/.cache/go-build}"
 export GOMODCACHE="${GOMODCACHE:-${ROOT_DIR}/.cache/go-mod}"
 export GOLANGCI_LINT_CACHE="${GOLANGCI_LINT_CACHE:-${ROOT_DIR}/.cache/golangci-lint}"
+if [[ -z "${GOFLAGS:-}" ]]; then
+  export GOFLAGS="-mod=readonly"
+else
+  export GOFLAGS="${GOFLAGS} -mod=readonly"
+fi
 
 STAGED_GO_FILES="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.go$' || true)"
 if [[ -z "${STAGED_GO_FILES}" ]]; then
